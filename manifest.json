@@ -2,7 +2,7 @@
   "name": "Arsenal CRS Bardospass",
   "short_name": "Arsenal CRS",
   "description": "Arsenal de medicamentos CRS",
-  "start_url": "/arsenal-crs/",
+  "start_url": "index.html",
   "display": "standalone",
   "background_color": "#06000f",
   "theme_color": "#06000f",
