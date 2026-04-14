@@ -150,6 +150,35 @@ header{position:relative;z-index:10;background:linear-gradient(180deg,rgba(14,0,
 .exp-close{background:rgba(60,0,120,.3);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;color:var(--muted);font-size:13px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;}
 .exp-import{background:rgba(0,255,170,.1);border:1px solid rgba(0,255,170,.3);border-radius:8px;padding:10px 14px;color:var(--green);font-size:13px;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;}
 .edited-count{font-size:11px;color:var(--muted);margin-top:6px;font-weight:600;}
+
+/* ── MAP MODAL ── */
+#mapModal{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;background:var(--bg);}
+#mapModal.show{display:flex;}
+.map-header{display:flex;align-items:center;gap:10px;padding:max(env(safe-area-inset-top),12px) 14px 10px;background:linear-gradient(180deg,rgba(14,0,32,.99),rgba(10,0,22,.96));border-bottom:1px solid var(--border2);flex-shrink:0;}
+.map-back{background:rgba(100,0,200,.3);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--glow);font-size:12px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;cursor:pointer;}
+.map-title{font-family:'Black Ops One',system-ui,sans-serif;font-size:15px;letter-spacing:2px;background:linear-gradient(90deg,#c450ff,#ede6ff 55%,#c450ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.map-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;border-bottom:1px solid var(--border);}
+.map-tabs::-webkit-scrollbar{display:none;}
+.map-tab{flex-shrink:0;padding:8px 14px;font-size:11px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.map-tab.active{color:var(--glow);border-bottom-color:var(--glow);}
+.map-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 14px env(safe-area-inset-bottom,16px);}
+.shelf-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.shelf-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.shelf-grid{display:inline-grid;gap:3px;margin-bottom:20px;max-width:100%;overflow-x:auto;}
+.shelf-row-label{font-size:9px;color:var(--muted);font-weight:700;display:flex;align-items:center;justify-content:center;min-width:18px;}
+.shelf-cell{width:34px;height:34px;border-radius:5px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:transform .1s,box-shadow .1s;font-size:8px;font-weight:700;letter-spacing:.3px;text-align:center;line-height:1.2;overflow:hidden;}
+.shelf-cell.occupied{border-width:2px;}
+.shelf-cell.occupied:active{transform:scale(.93);}
+.shelf-cell.multi::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.5);}
+.shelf-col-labels{display:flex;gap:3px;margin-bottom:3px;padding-left:21px;}
+.shelf-col-label{width:34px;text-align:center;font-size:8px;color:rgba(155,126,200,.4);font-weight:700;}
+/* cell tooltip / popup */
+#mapPopup{position:fixed;z-index:300;background:rgba(14,0,32,.97);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-width:220px;box-shadow:0 4px 24px rgba(100,0,220,.4);display:none;pointer-events:none;}
+#mapPopup.show{display:block;}
+.mp-loc{font-size:9px;color:var(--glow);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:5px;}
+.mp-item{font-size:11px;font-weight:700;color:var(--text);padding:3px 0;border-bottom:1px solid var(--border);line-height:1.3;}
+.mp-item:last-child{border-bottom:none;}
+.mp-item .mp-cod{font-size:9px;color:var(--muted);font-weight:600;}
 </style>
 </head>
 <body>
@@ -160,6 +189,7 @@ header{position:relative;z-index:10;background:linear-gradient(180deg,rgba(14,0,
       <div class="htitle">ARSENAL CRS</div>
       <div class="hsub" id="tc">Cargando...</div>
     </div>
+    <button class="hbtn" onclick="openMap()" style="margin-right:6px">🗺 MAPA</button>
     <button class="hbtn" onclick="openExport()">⬆ SYNC</button>
   </div>
   <div class="sw">
@@ -248,6 +278,17 @@ header{position:relative;z-index:10;background:linear-gradient(180deg,rgba(14,0,
     <button class="btn-save" onclick="saveEditor()">⚡ GUARDAR</button>
   </div>
 </div>
+
+<!-- MAP MODAL -->
+<div id="mapModal">
+  <div class="map-header">
+    <button class="map-back" onclick="closeMap()">‹ Volver</button>
+    <div class="map-title">MAPA VISUAL</div>
+  </div>
+  <div class="map-tabs" id="mapTabs"></div>
+  <div class="map-body" id="mapBody"></div>
+</div>
+<div id="mapPopup"></div>
 
 <!-- EXPORT MODAL -->
 <div id="expModal" onclick="if(event.target===this)closeExport()">
@@ -449,6 +490,144 @@ function applyImport(){
     alert('✓ '+Object.keys(data).length+' cambios importados correctamente');
   }catch(e){alert('Error en el JSON. Verifica que sea válido.');}
 }
+
+/* ══ MAP ══ */
+var MAP_SHELVES=[
+  {key:'Estantería Cardiovascular',label:'🫀 Cardiovascular',color:'#f472b6',tab:'Cardiovascular'},
+  {key:'Estantería General',label:'💊 General',color:'#fbbf24',tab:'General'},
+  {key:'Carro de Salud Mental',label:'🧠 Salud Mental',color:'#a78bfa',tab:'Salud Mental'},
+  {key:'Controlados (Oficina QF)',label:'🔒 Controlados',color:'#34d399',tab:'Controlados'}
+];
+var CM2={rosado:'#f472b6',celeste:'#38bdf8',amarillo:'#fbbf24',dorado:'#a78bfa',verde:'#34d399'};
+var mapActiveTab=0;
+var mapPopupTimer=null;
+
+function openMap(){
+  var modal=document.getElementById('mapModal');
+  modal.classList.add('show');
+  document.body.style.overflow='hidden';
+  buildMapTabs();
+  renderMapTab(mapActiveTab);
+}
+function closeMap(){
+  document.getElementById('mapModal').classList.remove('show');
+  document.body.style.overflow='';
+  hideMapPopup();
+}
+function buildMapTabs(){
+  var tabsEl=document.getElementById('mapTabs');
+  tabsEl.innerHTML='';
+  MAP_SHELVES.forEach(function(s,i){
+    var btn=document.createElement('button');
+    btn.className='map-tab'+(i===mapActiveTab?' active':'');
+    btn.textContent=s.tab;
+    btn.style.borderBottomColor=i===mapActiveTab?s.color:'transparent';
+    btn.style.color=i===mapActiveTab?s.color:'';
+    btn.onclick=function(){mapActiveTab=i;buildMapTabs();renderMapTab(i);};
+    tabsEl.appendChild(btn);
+  });
+}
+function renderMapTab(idx){
+  var shelf=MAP_SHELVES[idx];
+  var body=document.getElementById('mapBody');
+  // gather all meds for this shelf
+  var meds=MD.filter(function(m){return (m.estanteria||'')=== shelf.key;});
+  // build cell map: key = "fila|col" -> array of meds
+  var cellMap={};
+  var maxRow=0,maxCol=0;
+  meds.forEach(function(m){
+    var r=m.fila,c=m.columnas;
+    if(!r||!c)return;
+    var k=r+'|'+c;
+    if(!cellMap[k])cellMap[k]=[];
+    cellMap[k].push(m);
+    var ri=isNaN(r)?0:parseInt(r);
+    var ci=isNaN(c)?0:parseInt(c);
+    if(ri>maxRow)maxRow=ri;
+    if(ci>maxCol)maxCol=ci;
+  });
+  // check for non-numeric rows (like 'top')
+  var extraRows=[];
+  Object.keys(cellMap).forEach(function(k){
+    var r=k.split('|')[0];
+    if(isNaN(r)&&extraRows.indexOf(r)<0)extraRows.push(r);
+  });
+  if(!maxRow&&!maxCol&&!extraRows.length){
+    body.innerHTML='<div class="empty"><div class="empty-icon">📦</div><p>Sin ubicaciones registradas</p></div>';
+    return;
+  }
+  var html='';
+  html+='<div class="shelf-label">'+shelf.label+'</div>';
+  // column header
+  if(maxCol>0){
+    html+='<div class="shelf-col-labels">';
+    for(var c2=1;c2<=maxCol;c2++)html+='<div class="shelf-col-label">'+c2+'</div>';
+    html+='</div>';
+  }
+  // numeric rows
+  var rows=[];
+  for(var ri2=1;ri2<=maxRow;ri2++)rows.push(String(ri2));
+  // extra rows at end
+  extraRows.forEach(function(r){rows.push(r);});
+  rows.forEach(function(row){
+    html+='<div style="display:flex;gap:3px;align-items:center;margin-bottom:3px;">';
+    html+='<div class="shelf-row-label" style="min-width:18px;font-size:9px;color:rgba(155,126,200,.5);font-weight:700;">'+row+'</div>';
+    for(var col=1;col<=maxCol;col++){
+      var key=row+'|'+col;
+      var items=cellMap[key]||[];
+      if(items.length){
+        var ce=items[0].color_etiqueta;
+        var bg=ce&&CM2[ce]?CM2[ce]:'#6600cc';
+        var isMulti=items.length>1;
+        // abbreviate name
+        var shortName=items[0].nombre.split(' ').slice(0,2).join(' ');
+        if(isMulti)shortName='×'+items.length;
+        html+='<div class="shelf-cell occupied'+(isMulti?' multi':'')+'" '
+          +'style="background:'+bg+'22;border-color:'+bg+';color:'+bg+'" '
+          +'onclick="showMapPopup(event,\''+row+'\',\''+col+'\',\''+shelf.key+'\')" '
+          +'title="'+items.map(function(m){return m.nombre;}).join(' / ')+'">'
+          +(isMulti?'×'+items.length:shortName.substring(0,6))+'</div>';
+      }else{
+        html+='<div class="shelf-cell"></div>';
+      }
+    }
+    html+='</div>';
+  });
+  body.innerHTML=html;
+}
+function showMapPopup(e,row,col,shelfKey){
+  e.stopPropagation();
+  clearTimeout(mapPopupTimer);
+  var items=MD.filter(function(m){
+    return (m.estanteria||'')===shelfKey&&String(m.fila)===String(row)&&String(m.columnas)===String(col);
+  });
+  if(!items.length)return;
+  var popup=document.getElementById('mapPopup');
+  var html='<div class="mp-loc">Fila '+row+' · Col '+col+'</div>';
+  items.forEach(function(m){
+    html+='<div class="mp-item"><div>'+m.nombre+'</div><div class="mp-cod">'+m.codigo+(m.presentacion?' · '+m.presentacion:'')+'</div></div>';
+  });
+  popup.innerHTML=html;
+  // position
+  var x=e.clientX,y=e.clientY;
+  popup.style.display='block';
+  var pw=popup.offsetWidth||220,ph=popup.offsetHeight||80;
+  var vw=window.innerWidth,vh=window.innerHeight;
+  var left=Math.min(x+8,vw-pw-8);
+  var top=y+20+ph>vh?y-ph-8:y+20;
+  popup.style.left=left+'px';
+  popup.style.top=top+'px';
+  popup.classList.add('show');
+  mapPopupTimer=setTimeout(hideMapPopup,3000);
+}
+function hideMapPopup(){
+  var p=document.getElementById('mapPopup');
+  p.classList.remove('show');
+  p.style.display='none';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.classList.contains('shelf-cell'))hideMapPopup();
+});
 
 /* ── INIT ── */
 render('');
